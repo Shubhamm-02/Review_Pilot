@@ -1,4 +1,4 @@
-# Second Reviewer
+# Review Pilot
 
 **An AI agent that turns any GitHub pull request into a two-minute review.**
 Built on the [Strands Agents SDK](https://strandsagents.com) for the *Agents for Humans* hackathon (Professional Agents track).
