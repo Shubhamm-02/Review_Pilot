@@ -1,0 +1,4 @@
+boto3==1.43.87
+mcp==1.29.1
+strands-agents==1.54.0
+strands-agents-tools==0.8.7
