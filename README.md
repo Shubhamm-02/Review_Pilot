@@ -4,8 +4,8 @@
 Built on the [Strands Agents SDK](https://strandsagents.com) for the *Agents for Humans* hackathon (Professional Agents track).
 
 Every code review starts with the same repetitive busywork: read the whole diff, figure out
-what actually changed, guess what's risky, and remember the repo's own conventions. **Second
-Reviewer** does that prep for you. Point it at a PR and it hands your human reviewer a
+what actually changed, guess what's risky, and remember the repo's own conventions. **Review
+Pilot** does that prep for you. Point it at a PR and it hands your human reviewer a
 risk-flagged briefing — so a one-hour review becomes a two-minute one.
 
 It **prepares**, it never approves or merges. A human stays in the loop for every decision.
@@ -30,8 +30,9 @@ Optionally, with `--post` and explicit human confirmation, it posts the report a
 
 ## How it works
 
-Second Reviewer is a Strands agent with four tools. The agent decides when to call them, reads
-the results, and reasons over the diff to produce the report.
+Review Pilot has two stages. First it **deterministically gathers** the three context
+sources every review needs, so no review is ever missing context. Then the **Strands agent
+reasons** over that context to produce the briefing. A human approves any write action.
 
 | Tool | What it does |
 |------|--------------|
@@ -40,7 +41,10 @@ the results, and reasons over the diff to produce the report.
 | `get_repo_conventions` | The repo's own contribution/style rules |
 | `post_review_comment` | Posts the review — **human-gated, never automatic** |
 
-All GitHub access goes through the authenticated `gh` CLI, so the agent never handles raw tokens.
+The first three run up front in `gather_context()`; the agent then reasons over the result.
+All four remain registered as Strands tools, so on a strong backend (Bedrock/Claude) the
+agent can also be driven fully autonomously. All GitHub access goes through the authenticated
+`gh` CLI, so the agent never handles raw tokens.
 
 See [`ARCHITECTURE.md`](./ARCHITECTURE.md) for the full diagram.
 
@@ -85,7 +89,7 @@ export OLLAMA_MODEL=qwen2.5:7b      # a tool-calling-capable model
 
 ## Deployment
 
-For the hackathon submission, Second Reviewer deploys to **Amazon Bedrock AgentCore Runtime**.
+For the hackathon submission, Review Pilot deploys to **Amazon Bedrock AgentCore Runtime**.
 See [`ARCHITECTURE.md`](./ARCHITECTURE.md) for the deployment path.
 
 ---

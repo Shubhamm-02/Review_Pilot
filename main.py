@@ -11,7 +11,7 @@ from __future__ import annotations
 import argparse
 import sys
 
-from pr_review_agent.agent import build_agent
+from pr_review_agent.agent import build_agent, prepare_review
 from pr_review_agent.tools import parse_pr_ref, post_review_comment
 
 
@@ -35,8 +35,7 @@ def main() -> int:
     agent = build_agent()
 
     print(f"Preparing review for {args.pr} ...\n", file=sys.stderr)
-    result = agent(f"Prepare the review for this pull request: {args.pr}")
-    report = str(result)
+    report = prepare_review(args.pr, agent=agent)
 
     if args.post:
         print("\n" + "=" * 60, file=sys.stderr)

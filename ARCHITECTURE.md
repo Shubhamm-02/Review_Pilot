@@ -1,7 +1,9 @@
-# Architecture — Second Reviewer
+# Architecture — Review Pilot
 
-Second Reviewer is a single Strands agent that orchestrates four tools to gather PR context,
-then reasons over it to produce a reviewer briefing. A human approves any write action.
+Review Pilot has two stages: a deterministic gather step assembles the three context sources
+every review needs, then a Strands agent reasons over that context to produce a reviewer
+briefing. Gathering context in code (rather than leaving it to the model to remember) makes
+the output reliable on any model backend. A human approves any write action.
 
 ## System diagram
 
@@ -10,7 +12,7 @@ flowchart TD
     User([Developer / Reviewer]) -->|"owner/repo#123"| CLI[main.py CLI]
     CLI --> Agent
 
-    subgraph Strands["Strands Agent — Second Reviewer"]
+    subgraph Strands["Strands Agent — Review Pilot"]
         Agent[Agent loop<br/>system prompt: senior reviewer]
         Model[/Model backend<br/>Bedrock Claude · or Ollama/]
         Agent <--> Model
@@ -34,7 +36,7 @@ flowchart TD
 ## Flow
 
 1. **Invoke** — the user passes a PR reference (`owner/repo#123` or a pull URL) to the CLI.
-2. **Gather** — the agent calls, in order:
+2. **Gather (deterministic)** — `gather_context()` fetches all three, in order:
    - `get_pr_metadata` — title, author, size, changed files
    - `get_pr_diff` — the actual unified diff (size-capped)
    - `get_repo_conventions` — the repo's own `CONTRIBUTING.md` / `CONVENTIONS.md` / `CLAUDE.md`
@@ -47,6 +49,10 @@ flowchart TD
 
 - **`gh` CLI as the GitHub boundary.** The agent never touches raw tokens; auth is delegated to
   the user's existing `gh` login. Simple, secure, and works against any repo the user can see.
+- **Deterministic gather, agentic reasoning.** The three context sources are fetched in code,
+  not left to the model to remember to call. This guarantees every review is built from
+  complete context and makes the output reliable even on small local models — while the tools
+  stay registered so a strong backend can still be driven fully autonomously.
 - **Model-agnostic backend.** One env var (`MODEL_BACKEND`) switches between Amazon Bedrock
   (production / hackathon) and Ollama (free local dev). No code changes.
 - **Human-in-the-loop by design.** The agent *prepares* reviews; it never approves or merges.

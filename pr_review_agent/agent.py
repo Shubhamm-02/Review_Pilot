@@ -19,17 +19,14 @@ from .tools import (
 )
 
 SYSTEM_PROMPT = """\
-You are a senior code reviewer preparing a human's review of a GitHub pull request.
-You do NOT approve or merge. You gather context and produce review-prep material so
-a human reviewer can act in minutes instead of an hour.
+You are Review Pilot, a senior code reviewer preparing a human's review of a GitHub
+pull request. You do NOT approve or merge. You produce review-prep material so a human
+reviewer can act in minutes instead of an hour.
 
-Your workflow for any PR:
-1. Call get_pr_metadata to learn the title, author, size, and changed files.
-2. Call get_pr_diff to read the actual changes.
-3. Call get_repo_conventions to learn the repo's own rules, and hold the review to
-   THOSE rules, not generic style opinions.
-
-Then produce a single markdown report with these sections, in order:
+You are given the full context for one pull request: its metadata, its diff, and the
+repository's own conventions. Using ONLY that provided context, produce a single markdown
+report with EXACTLY these five sections, each with its "##" heading, in this order
+(never omit a section — if one is empty, say so under it):
 
 ## Summary
 2-4 sentences: what this PR does and why, in plain language.
@@ -66,6 +63,7 @@ def _build_model():
         return OllamaModel(
             host=os.getenv("OLLAMA_HOST", "http://localhost:11434"),
             model_id=os.getenv("OLLAMA_MODEL", "llama3.1"),
+            temperature=0.1,
         )
 
     # Default: Amazon Bedrock. Uses standard AWS credential resolution
@@ -83,7 +81,12 @@ def _build_model():
 
 
 def build_agent() -> Agent:
-    """Construct the review-prep agent with its model, tools, and system prompt."""
+    """Construct the review-prep agent with its model, tools, and system prompt.
+
+    The three context-gathering tools remain registered so the agent can be driven
+    autonomously on a strong backend (e.g. Bedrock/Claude), but the default
+    prepare_review() flow gathers them deterministically for reliability on any model.
+    """
     return Agent(
         model=_build_model(),
         system_prompt=SYSTEM_PROMPT,
@@ -94,3 +97,41 @@ def build_agent() -> Agent:
             post_review_comment,
         ],
     )
+
+
+def gather_context(pr_ref: str) -> str:
+    """Deterministically fetch metadata, diff, and conventions and assemble one context blob.
+
+    Doing this in code — rather than hoping the model calls all three tools — guarantees
+    every review is built from the same complete context, on any model backend.
+    """
+    metadata = get_pr_metadata(pr_ref)
+    diff = get_pr_diff(pr_ref)
+    conventions = get_repo_conventions(pr_ref)
+    return (
+        f"Context for pull request {pr_ref}.\n\n"
+        f"===== PR METADATA =====\n{metadata}\n\n"
+        f"===== DIFF =====\n{diff}\n\n"
+        f"===== REPOSITORY CONVENTIONS =====\n{conventions}\n"
+    )
+
+
+def prepare_review(pr_ref: str, agent: Agent | None = None) -> str:
+    """Produce the full review briefing for a PR: gather context, then reason over it.
+
+    Args:
+        pr_ref: The pull request, as 'owner/repo#123' or a github.com pull URL.
+        agent:  An optional pre-built agent (reused across calls); one is built if omitted.
+
+    Returns:
+        The five-section markdown review report.
+    """
+    agent = agent or build_agent()
+    context = gather_context(pr_ref)
+    instruction = (
+        f"{context}\n"
+        "Using ONLY the context above, write the review report now, with all five "
+        "sections in order: ## Summary, ## Risk Flags, ## Convention Check, "
+        "## Review Checklist, ## Suggested PR Description."
+    )
+    return str(agent(instruction))
